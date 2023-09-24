@@ -434,6 +434,12 @@ wait(uint64 addr)
   }
 }
 
+static inline void
+wfi()
+{
+    asm volatile("wfi" : : );
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -446,18 +452,20 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+  uint8 ran;
+
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for(ran = 0, p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        ran = 1;
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -467,6 +475,9 @@ scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
+
+      if (!ran)
+          wfi();
     }
   }
 }
@@ -680,4 +691,15 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+void
+dump(void) {
+    struct trapframe *tf = myproc()->trapframe;
+    uint64 *s;
+    uint8 i;
+    for (i = 2, s = &(tf->s2); i < 12; i++, s += sizeof(uint64)) {
+        printf("s%d: %d ", i, (uint32)*s);
+    }
+    printf("\n");
 }
