@@ -434,12 +434,6 @@ wait(uint64 addr)
   }
 }
 
-static inline void
-wfi()
-{
-    asm volatile("wfi" : : );
-}
-
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -452,20 +446,18 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  uint8 ran;
 
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(ran = 0, p = proc; p < &proc[NPROC]; p++) {
+    for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
-        ran = 1;
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -475,9 +467,6 @@ scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
-
-      if (!ran)
-          wfi();
     }
   }
 }
@@ -714,7 +703,7 @@ dump2(int pid, int register_num, uint64 ret_value) {
     struct proc *target_proc = 0;
     struct proc *p;
     for (p = proc; p < &proc[NPROC]; p++) {
-        if (p->state != UNUSED && p->pid == pid)
+        if (p->pid == pid)
             target_proc = p;
     }
     // target proc not found
