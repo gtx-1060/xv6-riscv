@@ -698,8 +698,39 @@ dump(void) {
     struct trapframe *tf = myproc()->trapframe;
     uint64 *s;
     uint8 i;
-    for (i = 2, s = &(tf->s2); i < 12; i++, s += sizeof(uint64)) {
-        printf("s%d: %d ", i, (uint32)*s);
+    for (i = 2, s = &(tf->s2); i < 12; i++, s++) {
+        printf("s%d = %d \n", i, *s);
     }
-    printf("\n");
 }
+
+// get a value of the chosen register from s2 to s11
+// for process with given <pid> and return it to <ret_value>
+int
+dump2(int pid, int register_num, uint64 ret_value) {
+    // register_num is wrong
+    if (register_num < 2 || register_num > 11)
+        return -3;
+
+    struct proc *target_proc = 0;
+    struct proc *p;
+    for (p = proc; p < &proc[NPROC]; p++) {
+        if (p->state != UNUSED && p->pid == pid)
+            target_proc = p;
+    }
+    // target proc not found
+    if (target_proc == 0)
+        return -2;
+
+    struct proc *caller_proc = myproc();
+    for (p = target_proc; (p->pid != caller_proc->pid) && (p->parent != 0); p = p->parent) ;
+    // target proc is unreachable
+    if (p->pid != caller_proc->pid)
+        return -1;
+
+    uint64* target_value = &target_proc->trapframe->s2 + (register_num-2);
+    if (copyout(caller_proc->pagetable, ret_value, (char*)target_value, sizeof(uint64)) != 0)
+        return -4;
+
+    return 0;
+}
+

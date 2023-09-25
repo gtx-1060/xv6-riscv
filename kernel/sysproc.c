@@ -97,3 +97,15 @@ sys_dump(void)
     return 0;
 }
 
+uint64
+sys_dump2(void)
+{
+    int pid, reg_num;
+    uint64 ret_val;
+
+    argint(0, &pid);
+    argint(1, &reg_num);
+    argaddr(2, &ret_val);
+    return dump2(pid, reg_num, ret_val);
+}
+

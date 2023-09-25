@@ -8,9 +8,9 @@
 
 int main(int argc, char *argv[])
 {
-    pde_t pid;
+    int pid;
     int pipefd[2];
-    char buff[128];
+    char buff[64];
 
     if (pipe(pipefd) == -1) {
         fprintf(2, "Unable to create pipe!");
@@ -26,17 +26,16 @@ int main(int argc, char *argv[])
     if (pid == 0) {
         // child
         read(pipefd[0], buff, sizeof(buff));
-        printf("%p: got %s\n", getpid(), buff);
+        printf("%p: got \"%s\"\n", getpid(), buff);
         if (strlen(buff) > 0) {
-            write(pipefd[1], "ping", 4);
+            write(pipefd[1], "pong", 4);
         }
     } else {
         // parent
-        printf("child pid: %p\n", pid);
-        write(pipefd[1], "pong", 4);
+        write(pipefd[1], "ping", 4);
         wait(0);
         read(pipefd[0], buff, sizeof(buff));
-        printf("%p: got %s\n", getpid(), buff);
+        printf("%p: got \"%s\"\n", getpid(), buff);
     }
 
     close(pipefd[0]);
