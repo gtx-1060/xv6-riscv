@@ -692,13 +692,16 @@ dump(void) {
     }
 }
 
+// написать tcp сервер
+// оттестировать с помощью telnet
+
 // get a value of the chosen register from s2 to s11
 // for process with given <pid> and return it to <ret_value>
 int
 dump2(int pid, int register_num, uint64 ret_value) {
     // register_num is wrong
     if (register_num < 2 || register_num > 11)
-        return -3;
+        return INCORRECT_REGISTER_ID;
 
     struct proc *target_proc = 0;
     struct proc *p;
@@ -708,17 +711,17 @@ dump2(int pid, int register_num, uint64 ret_value) {
     }
     // target proc not found
     if (target_proc == 0)
-        return -2;
+        return PROCESS_NOT_FOUND;
 
     struct proc *caller_proc = myproc();
     for (p = target_proc; (p->pid != caller_proc->pid) && (p->parent != 0); p = p->parent) ;
     // target proc is unreachable
     if (p->pid != caller_proc->pid)
-        return -1;
+        return NOT_ENOUGH_PERMISSIONS;
 
     uint64* target_value = &target_proc->trapframe->s2 + (register_num-2);
     if (copyout(caller_proc->pagetable, ret_value, (char*)target_value, sizeof(uint64)) != 0)
-        return -4;
+        return UNABLE_TO_RETURN_DATA;
 
     return 0;
 }

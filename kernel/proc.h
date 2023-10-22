@@ -1,3 +1,10 @@
+
+#define NOT_ENOUGH_PERMISSIONS -1
+#define PROCESS_NOT_FOUND -2
+#define INCORRECT_REGISTER_ID -3
+#define UNABLE_TO_RETURN_DATA -4
+
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;

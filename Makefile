@@ -8,6 +8,8 @@ OBJS = \
   $K/printf.o \
   $K/uart.o \
   $K/kalloc.o \
+  $K/list.o \
+  $K/buddy.o \
   $K/spinlock.o \
   $K/string.o \
   $K/main.o \
@@ -152,6 +154,8 @@ UPROGS=\
 	$U/_showdump\
 	$U/_dumptests\
 	$U/_dump2tests\
+	$U/_dump2tests\
+	$U/_alloctest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
