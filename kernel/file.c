@@ -12,46 +12,41 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "buddy.h"
 
 struct devsw devsw[NDEV];
-struct {
-  struct spinlock lock;
-  struct file file[NFILE];
-} ftable;
+struct spinlock lock;
+//struct {
+//  struct spinlock lock;
+//  struct file file[NFILE];
+//} ftable;
 
 void
 fileinit(void)
 {
-  initlock(&ftable.lock, "ftable");
+  initlock(&lock, "ftable");
 }
 
 // Allocate a file structure.
 struct file*
 filealloc(void)
 {
-  struct file *f;
-
-  acquire(&ftable.lock);
-  for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
-  }
-  release(&ftable.lock);
-  return 0;
+  struct file* f = bd_malloc(sizeof(struct file));
+  if (f == 0)
+      return 0;
+  f->ref = 1;
+  return f;
 }
 
 // Increment ref count for file f.
 struct file*
 filedup(struct file *f)
 {
-  acquire(&ftable.lock);
+  acquire(&lock);
   if(f->ref < 1)
     panic("filedup");
   f->ref++;
-  release(&ftable.lock);
+  release(&lock);
   return f;
 }
 
@@ -61,17 +56,16 @@ fileclose(struct file *f)
 {
   struct file ff;
 
-  acquire(&ftable.lock);
+  acquire(&lock);
   if(f->ref < 1)
     panic("fileclose");
   if(--f->ref > 0){
-    release(&ftable.lock);
+    release(&lock);
     return;
   }
   ff = *f;
-  f->ref = 0;
-  f->type = FD_NONE;
-  release(&ftable.lock);
+  bd_free(f);
+  release(&lock);
 
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
