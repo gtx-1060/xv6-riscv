@@ -1,3 +1,4 @@
+#include "list.h"
 
 #define NOT_ENOUGH_PERMISSIONS -1
 #define PROCESS_NOT_FOUND -2
@@ -90,6 +91,9 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
+  struct list list;
+//  struct proc* next;
+//  struct proc* prev;
   struct spinlock lock;
 
   // p->lock must be held when using these:
