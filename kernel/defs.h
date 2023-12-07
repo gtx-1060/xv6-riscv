@@ -63,6 +63,9 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            kaddref(void* pa);
+uint8           kpagerefs(void* pa);
+struct spinlock* klock(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -108,6 +111,8 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 void            dump(void);
 int             dump2(int pid, int register_num, uint64 ret_value);
+void vmprint(pagetable_t pagetable);
+
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -175,6 +180,8 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+int             dupl_shared_mem(pagetable_t pagetable, uint64 pa, uint64 va, pte_t* pte);
+
 
 // plic.c
 void            plicinit(void);

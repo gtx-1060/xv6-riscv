@@ -67,7 +67,7 @@ fileclose(struct file *f)
   bd_free(f);
   release(&lock);
 
-  if(ff.type == FD_PIPE){
+  if(ff.type == FD_PIPE) {
     pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();

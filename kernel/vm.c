@@ -308,20 +308,20 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+//  char *mem;
 
-  for(i = 0; i < sz; i += PGSIZE){
+  for (i = 0; i < sz; i += PGSIZE) {
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    *pte &= ~PTE_W;
+    *pte |= PTE_SHRD;
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    kaddref((void*)pa);
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+      kfree((void*)pa);
       goto err;
     }
   }
@@ -352,12 +352,24 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
+    if(va0 >= MAXVA)
+      return -1;
+    pte_t* pte = walk(pagetable, va0, 0);
+    if((*pte & PTE_V) == 0)
+      return -1;
+    if((*pte & PTE_U) == 0)
+      return -1;
+    pa0 = PTE2PA(*pte);
     if(pa0 == 0)
       return -1;
+    if ((*pte & PTE_SHRD) != 0) {
+      if (dupl_shared_mem(pagetable, pa0, va0, pte) == -1)
+        return -1;
+      pa0 = walkaddr(pagetable, va0);
+    }
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
@@ -367,6 +379,30 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     src += n;
     dstva = va0 + PGSIZE;
   }
+  return 0;
+}
+
+int dupl_shared_mem(pagetable_t pagetable, uint64 pa, uint64 va, pte_t* pte) {
+  acquire(klock());
+  if (kpagerefs((void*)pa) < 2) {
+    *pte |= PTE_W;
+    *pte &= ~PTE_SHRD;
+    release(klock());
+    return 0;
+  }
+  char* mem;
+  uint flags = PTE_FLAGS(*pte | PTE_W);
+  if ((mem = kalloc()) == 0)
+    return -1;
+  memmove(mem, (char*)pa, PGSIZE);
+  *pte &= ~PTE_V;
+  if(mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
+    kfree(mem);
+    return -1;
+  }
+  kfree((void*)pa);
+  *pte &= ~PTE_SHRD;
+  release(klock());
   return 0;
 }
 
@@ -437,3 +473,22 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+void print_pagetable(pagetable_t pagetable, int level) {
+  if (level < 0)
+    return;
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if (!(pte & PTE_V))
+      continue;
+    for (int j = level; j < 3; j++) printf(" ..");
+    uint64 child = PTE2PA(pte);
+    printf("%u: pte %p pa %p\n", i, pte, child);
+    print_pagetable((pagetable_t)child, level-1);
+  }
+}
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  print_pagetable(pagetable, 2);
+}
+

@@ -65,14 +65,40 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } else if (r_scause() == 15) {
+    // pagefault
+    uint64 va = PGROUNDDOWN(r_stval());
+    if (va > MAXVA)
+      goto err;
+    pte_t* pte = walk(p->pagetable, va, 0);
+    uint64 pa = PTE2PA(*pte);
+
+//    printf("at trap refs=%u\n", kpagerefs((void*)pa) );
+    if((*pte & PTE_V) == 0)
+      goto err;
+    if (kpagerefs((void*)pa) == 0) {
+      goto err;
+    }
+    if ((*pte & PTE_SHRD) == 0) {
+      printf("got to err with: %u refs\n", kpagerefs((void*)pa));
+      goto err;
+    }
+//    else if (kpagerefs((void*)pa) < 2) {
+//      *pte |= PTE_W;
+//      goto ok;
+//    }
+    if (dupl_shared_mem(p->pagetable, pa, va, pte) == -1) {
+      goto err;
+    }
+//    printf("handled\n");
+  } else if((which_dev = devintr()) != 0) {
     // ok
   } else {
+    err:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
   }
-
   if(killed(p))
     exit(-1);
 
