@@ -180,7 +180,7 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
-int             dupl_shared_mem(pagetable_t pagetable, uint64 pa, uint64 va, pte_t* pte);
+int             copy_shared_mem(uint64 pa, pte_t* pte);
 
 
 // plic.c

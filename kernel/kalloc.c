@@ -11,24 +11,21 @@
 #include "buddy.h"
 
 #define PGSTART(end) PGROUNDUP((uint64)end)
-#define PAGES(end) (((PHYSTOP-PGSTART(end)) / 4096)+1)
-#define PAGE_IND(addr, end) (((uint64)addr-PGSTART(end)) / 4096)
+#define PAGES(end) (((PHYSTOP - PGSTART(end)) / PGSIZE) + 1)
+#define PAGE_IND(addr, end) (( (uint64)addr - PGSTART(end) ) / PGSIZE)
 
 extern char end[];  // first address after kernel.
                     // defined by kernel.ld.
 uint8* page_refs;
 struct spinlock pagelock;
-struct spinlock lpagelock;
 
 void kinit() {
   char *p = (char*)PGSTART(end);
-  bd_init(p, (void *)PHYSTOP);
-  printf("pages %d\n", PAGES(end));
+  bd_init(p, (void*)PHYSTOP);
 
   page_refs = bd_malloc(PAGES(end));
   memset(page_refs, 0, PAGES(end));
-  initlock(&pagelock, "page_refs");
-  initlock(&lpagelock, "local_page_refs");
+  initlock(&pagelock, "local_page_refs");
 }
 
 // Free the page of physical memory pointed at by v,
@@ -36,18 +33,19 @@ void kinit() {
 // call to kalloc().  (The exception is when
 // initializing the allocator; see kinit above.)
 void kfree(void *pa) {
-  acquire(&lpagelock);
+  acquire(&pagelock);
   if (pa == 0)
     return;
   uint ind = PAGE_IND(pa, end);
   if (page_refs[ind] == 0) {
-    release(&lpagelock);
+    release(&pagelock);
+//    printf("attempt to free freed page!\n");
     return;
   }
   else if (page_refs[ind] == 1)
     bd_free(pa);
   page_refs[ind] -= 1;
-  release(&lpagelock);
+  release(&pagelock);
 //  printf("kfree at %u (%u)\n", ind , page_refs[ind]);
 }
 
@@ -55,28 +53,27 @@ void kfree(void *pa) {
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
 void *kalloc(void) {
-  acquire(&lpagelock);
+  acquire(&pagelock);
   void* pa = bd_malloc(PGSIZE);
   if (pa == 0){
-    release(&lpagelock);
+    release(&pagelock);
     return 0;
   }
-  page_refs[PAGE_IND(pa, end)] += 1;
-  release(&lpagelock);
+  page_refs[PAGE_IND(pa, end)] = 1;
+  release(&pagelock);
 //  printf("kalloc at %u\n", PAGE_IND(pa, end));
   return pa;
 }
 
 void kaddref(void* pa) {
-  acquire(&lpagelock);
+  acquire(&pagelock);
   page_refs[PAGE_IND(pa, end)] += 1;
-  release(&lpagelock);
+  release(&pagelock);
 }
 
 uint8 kpagerefs(void* pa) {
-  return page_refs[PAGE_IND(pa, end)];
-}
-
-struct spinlock* klock(void) {
-  return &pagelock;
+  acquire(&pagelock);
+  uint8 refs = page_refs[PAGE_IND(pa, end)];
+  release(&pagelock);
+  return refs;
 }

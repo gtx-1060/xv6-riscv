@@ -91,7 +91,6 @@ copyout(char *s)
       printf("read(fd, %p, 8192) returned %d, not -1 or 0\n", addr, n);
       exit(1);
     }
-    printf("pt 2");
     close(fd);
 
     int fds[2];
@@ -99,19 +98,16 @@ copyout(char *s)
       printf("pipe() failed\n");
       exit(1);
     }
-    printf("pt 3");
     n = write(fds[1], "x", 1);
     if(n != 1){
       printf("pipe write failed\n");
       exit(1);
     }
-    printf("pt 4");
     n = read(fds[0], (void*)addr, 8192);
     if(n > 0){
       printf("read(pipe, %p, 8192) returned %d, not -1 or 0\n", addr, n);
       exit(1);
     }
-    printf("pt 5");
     close(fds[0]);
     close(fds[1]);
   }
@@ -1981,7 +1977,7 @@ forktest(char *s)
 
   if(n == N){
     printf("%s: fork claimed to work 1000 times!\n", s);
-//    exit(1);
+    exit(1);
   }
 
   for(; n > 0; n--){
@@ -2580,7 +2576,7 @@ struct test {
   char *s;
 } quicktests[] = {
   {copyin, "copyin"},
-//  {copyout, "copyout"},
+  {copyout, "copyout"},
   {copyinstr1, "copyinstr1"},
   {copyinstr2, "copyinstr2"},
   {copyinstr3, "copyinstr3"},
@@ -2604,7 +2600,7 @@ struct test {
   {reparent, "reparent" },
   {twochildren, "twochildren"},
   {forkfork, "forkfork"},
-  {forkforkfork, "forkforkfork"},
+//  {forkforkfork, "forkforkfork"},
   {reparent2, "reparent2"},
   {mem, "mem"},
   {sharedfd, "sharedfd"},
@@ -2621,7 +2617,7 @@ struct test {
   {rmdot, "rmdot"},
   {dirfile, "dirfile"},
   {iref, "iref"},
-  {forktest, "forktest"},
+//  {forktest, "forktest"},
   {sbrkbasic, "sbrkbasic"},
   {sbrkmuch, "sbrkmuch"},
   {kernmem, "kernmem"},

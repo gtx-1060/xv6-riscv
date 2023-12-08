@@ -68,27 +68,23 @@ usertrap(void)
   } else if (r_scause() == 15) {
     // pagefault
     uint64 va = PGROUNDDOWN(r_stval());
-    if (va > MAXVA)
+    if (va >= MAXVA)
       goto err;
     pte_t* pte = walk(p->pagetable, va, 0);
+    if (pte == 0)
+      goto err;
     uint64 pa = PTE2PA(*pte);
+    if (*pte & PTE_LZ) {
 
-//    printf("at trap refs=%u\n", kpagerefs((void*)pa) );
-    if((*pte & PTE_V) == 0)
-      goto err;
-    if (kpagerefs((void*)pa) == 0) {
-      goto err;
     }
     if ((*pte & PTE_SHRD) == 0) {
-      printf("got to err with: %u refs\n", kpagerefs((void*)pa));
       goto err;
     }
-//    else if (kpagerefs((void*)pa) < 2) {
-//      *pte |= PTE_W;
-//      goto ok;
-//    }
-    if (dupl_shared_mem(p->pagetable, pa, va, pte) == -1) {
+    if((*pte & PTE_V) == 0)
       goto err;
+
+    if (copy_shared_mem(pa, pte) == -1) {
+      setkilled(p);
     }
 //    printf("handled\n");
   } else if((which_dev = devintr()) != 0) {
